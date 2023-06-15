@@ -1,0 +1,107 @@
+CREATE DATABASE vaccinedb;
+
+USE vaccinedb
+
+CREATE TABLE beneficiary (
+beneficiary_id INT(16) NOT NULL AUTO_INCREMENT,
+beneficiary_name VARCHAR(30) NOT NULL,
+beneficiary_dob DATE NOT NULL,
+beneficiary_ssn VARCHAR(9) NOT NULL,
+beneficiary_phone varchar(10) NOT NULL,
+
+CONSTRAINT phone_chk CHECK (beneficiary_phone not like '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'),
+CONSTRAINT bene_unq_id UNIQUE (beneficiary_id),
+CONSTRAINT bene_unq_ssn UNIQUE (beneficiary_ssn),
+PRIMARY KEY (beneficiary_id)
+);
+
+CREATE INDEX bene_phone_ind
+ON beneficiary (beneficiary_phone);
+
+CREATE INDEX bene_ssn_ind
+ON beneficiary (beneficiary_ssn);
+
+CREATE INDEX bene_name_ind
+ON beneficiary (beneficiary_name);
+
+//for create appointment function, if appointment date does not exist, you can add it via a query
+CREATE TABLE appointment (
+appointment_id INT(16) NOT NULL AUTO_INCREMENT,
+appointment_date DATE NOT NULL,
+appointment_slot VARCHAR(16) NOT NULL,
+
+CONSTRAINT slot_chk CHECK (appointment_slot IN ("MORNING", "AFTERNOON", "EVENING")),
+CONSTRAINT unq_app_time  UNIQUE (appointment_date, appointment_slot),
+CONSTRAINT unq_app_id UNIQUE (appointment_id),
+PRIMARY KEY (appointment_id)
+);
+
+CREATE INDEX app_date_ind
+ON appointment (appointment_date);
+
+CREATE TABLE beneficiary_appointment (
+beneficiary_appointment_id INT(16) NOT NULL AUTO_INCREMENT,
+beneficiary_id INT(16),
+appointment_id INT(16),
+appointment_center VARCHAR(16) NOT NULL,
+appointment_dose VARCHAR(1) NOT NULL,
+
+FOREIGN KEY (beneficiary_id)
+    REFERENCES beneficiary(beneficiary_id)
+    ON DELETE CASCADE,
+FOREIGN KEY (appointment_id)
+    REFERENCES appointment(appointment_id)
+    ON DELETE RESTRICT,
+CONSTRAINT center_chk CHECK (appointment_center IN ("CENTER-A", "CENTER-B", "CENTER-C", "CENTER-D")),
+CONSTRAINT dose_chk CHECK (appointment_dose IN ("1","2")),
+PRIMARY KEY (beneficiary_appointment_id)
+);
+
+(im going to assume if you've already have your 2 doses you will not need to re dose)
+
+needed queries >
+
+for adding >
+
+select * FROM beneficiary_appointment where appointment_id = beneficiary_appointment.appoiment_id = XXXX AND dose = (1-2)
+
+if ROWS > 15 {
+return EMPTY SLOTS
+}
+
+//run 2 of these to get open dates for doses 1 and 2. use recursive logic to elimate dates returned and
+select appoiment_id, dose, appointment_center COUNT(*) FROM beneficiary_appointment WHERE beneficiary_appointment.appointment_date BETWEEN XXXX(tomorrow) AND XXXX(2 weeks from date) GROUP BY beneficiary_appointment.appoiment_id, beneficiary_appointment.dose, beneficiary_appointment.appointment_center
+
+
+- time slot allows only 10 benificiary_appointment per appointment key
+
+/verifies this is a valid timeslot
+select * FROM beneficiary_appointment ba JOIN appointment app ON ba.appointment_id = app.appointment_id WHERE app.appointment_date = STR_TO_DATE('21-07-2023', '%d-%m-%Y') AND app.appointment_slot = XXXX AND (SELECT COUNT(*) FROM ba.beneficiary_appointment WHERE app.appointment_date = XXXX AND app.appointment_slot = XXXX) < 10 AND (SELECT COUNT(*) FROM ba.beneficiary_appointment WHERE app.appointment_date = XXXX AND ba.appointment_center = XXXX AND ba.dose = X) < 15 GROUP BY ba.appoiment_id, ba.dose, ba.appointment_center
+
+- only 30 vaccines available per day per center
+
+- only 15 first doses and 15 second doses per center
+
+- appointment only allowed if last beneficiary_appointment date is > 15 days
+
+select count(*), ba.dose, app.appointment_date from beneficiary_appointment ba JOIN beneficiary bene ON ba.appointment_id = bene.beneficiary_id JOIN appointment app ON ba.appointment_id = app.appointment_id WHERE ba.beneficiary_id = XXXX
+
+- appointment_beneficiary schedule only allowed if <90 days from curdate
+//just dont allow for update if > 90 of currdate
+- beneficiary only allowed 2 appointments (assuming ever. comment this)
+
+- beneficiary can cancel or reschedule
+
+INSERT INTO beneficiary (beneficiary_name, beneficiary_dob, beneficiary_ssn, beneficiary_phone) VALUES ("Lawrence Thao", STR_TO_DATE('1-01-1967', '%d-%m-%Y'), "152342112", "6081010101");
+INSERT INTO beneficiary (beneficiary_name, beneficiary_dob, beneficiary_ssn, beneficiary_phone) VALUES ("Larry Thao", STR_TO_DATE('1-01-1972', '%d-%m-%Y'), "152342114", "6081010101");
+INSERT INTO appointment (appointment_date, appointment_slot) VALUES (STR_TO_DATE('21-07-2023', '%d-%m-%Y'), "MORNING");
+INSERT INTO beneficiary_appointment (beneficiary_id, appointment_id, appointment_center, appointment_dose) VALUES (1, 2, "CENTER-A", "1");
+INSERT INTO beneficiary_appointment (beneficiary_id, appointment_id, appointment_center, appointment_dose) VALUES (2, 2, "CENTER-A", "1");
+
+
+SELECT * FROM beneficiary_appointment ba
+JOIN appointment app ON ba.appointment_id = app.appointment_id
+WHERE (SELECT COUNT(*) FROM beneficiary_appointment WHERE app.appointment_date = STR_TO_DATE('21-07-2023', '%d-%m-%Y')  AND app.appointment_slot = "MORNING") < 11 
+AND (SELECT COUNT(*) FROM beneficiary_appointment WHERE app.appointment_date = STR_TO_DATE('21-07-2023', '%d-%m-%Y') AND ba.appointment_center = "CENTER-A" AND ba.appointment_dose = "1") < 16;
+
+SELECT app.appointment_date, app.appointment_slot, appointment_center, appointment_dose FROM beneficiary_appointment JOIN appointment app ON ba.appointment_id = app.appointment_id JOIN beneficiary bene ON ba.beneficiary_id = bene.beneficiary_id WHERE beneficiary_id = 1
