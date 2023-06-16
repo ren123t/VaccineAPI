@@ -25,13 +25,9 @@ func ConnectDB() {
 	VaccineDB.SetMaxIdleConns(10)
 
 	err := VaccineDB.Ping()
-
-	b := Beneficiary{ID: 10}
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = b.Get()
-	fmt.Println(b, "  ", err)
 }
 
 //returns column name from struct tag

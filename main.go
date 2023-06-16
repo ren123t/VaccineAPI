@@ -1,22 +1,20 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	controllers "newproject/newproject/controllers"
 	models "newproject/newproject/models"
-	"os"
+	"newproject/newproject/util"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	mux "github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	var log = logrus.New()
-	log.SetFormatter(&logrus.JSONFormatter{})
-	log.Out = os.Stdout
+	util.SetLogWriter()
+
 	models.ConnectDB()
 	defer models.VaccineDB.Close()
 	r := mux.NewRouter()
@@ -30,17 +28,6 @@ func main() {
 	r.HandleFunc("/appointment/getAppointments", controllers.GetAppointments)
 	http.Handle("/", r)
 
-	file, err := os.OpenFile("./logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
-	if err != nil {
-		fmt.Println("ded")
-	} else {
-		log.Out = file
-	}
-	log.WithFields(logrus.Fields{
-		"fish": "wish",
-		"true": "moo",
-	}).Info("These Rhyme")
-	log.Infof("info", "")
 	srv := &http.Server{
 		Handler: r,
 		Addr:    "127.0.0.1:8000",

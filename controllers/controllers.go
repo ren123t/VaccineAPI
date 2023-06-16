@@ -1,11 +1,12 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"newproject/newproject/models"
+	"newproject/newproject/util"
 	"time"
 
+	"github.com/fatih/structs"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -29,6 +30,7 @@ func AddBeneficiary(w http.ResponseWriter, r *http.Request) {
 	err := jsoniter.NewDecoder(r.Body).Decode(&req)
 
 	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
@@ -36,7 +38,7 @@ func AddBeneficiary(w http.ResponseWriter, r *http.Request) {
 
 	dob, err := time.Parse("02-01-2006", req.BeneficiaryDOB)
 	if err != nil {
-		fmt.Println(err)
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
@@ -44,7 +46,7 @@ func AddBeneficiary(w http.ResponseWriter, r *http.Request) {
 	beneficiary := models.Beneficiary{Name: req.BeneficiaryName, DateOfBirth: dob, SocialSecurityNumber: req.BeneficiarySSN, Phone: req.BeneficiaryPhone}
 	_, err = beneficiary.Add()
 	if err != nil {
-		fmt.Println(err)
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusInternalServerError)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
@@ -55,30 +57,45 @@ func AddBeneficiary(w http.ResponseWriter, r *http.Request) {
 func GetBeneficiary(w http.ResponseWriter, r *http.Request) {
 	var beneficiary models.Beneficiary
 
-	jsoniter.NewDecoder(r.Body).Decode(&beneficiary)
-
-	if true {
+	err := jsoniter.NewDecoder(r.Body).Decode(&beneficiary)
+	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
-		jsoniter.NewEncoder(w).Encode("")
+		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
+		return
+	}
+	err = beneficiary.Get()
+	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
+		w.WriteHeader(http.StatusInternalServerError)
+		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
+		return
 	}
 
-	beneficiary.Get()
+	w.WriteHeader(http.StatusOK)
+	jsoniter.NewEncoder(w).Encode(beneficiary)
 }
 
+//Not needed for V.1
 func GetBeneficiaries(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	type Request struct {
-	}
+	// type Request struct {
+	// }
 
-	var req Request
+	// var req Request
 
-	jsoniter.NewDecoder(r.Body).Decode(&req)
-
-	if true {
-		w.WriteHeader(http.StatusBadRequest)
-		jsoniter.NewEncoder(w).Encode("")
-	}
+	// err := jsoniter.NewDecoder(r.Body).Decode(&req)
+	// if err != nil {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
+	// 	return
+	// }
+	// if true {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	jsoniter.NewEncoder(w).Encode("")
+	// 	return
+	// }
 
 	//GetBeneficiaries()
 }
@@ -101,6 +118,7 @@ func AddAppointment(w http.ResponseWriter, r *http.Request) {
 	err := jsoniter.NewDecoder(r.Body).Decode(&req)
 
 	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
@@ -108,88 +126,29 @@ func AddAppointment(w http.ResponseWriter, r *http.Request) {
 
 	appointDate, err := time.Parse("02-01-2006", req.AppointmentDate)
 	if err != nil {
-		fmt.Println(err)
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
 	}
-	appointment := models.Appointment{Date: appointDate, Timeslot: req.AppointmentTimeslot}
-	err = appointment.Get()
-	if err.Error() == "sql: no rows in result set" {
-		_, err = appointment.Add()
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-			return
-		}
-		err = appointment.Get()
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-			return
-		}
-	} else if err != nil {
+	err = models.AddFullAppointment(req.BeneficiaryID, appointDate, req.AppointmentTimeslot, req.Dose, req.AppointmentCenter)
+	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusInternalServerError)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
 	}
 
-	beneficiary := models.Beneficiary{ID: req.BeneficiaryID}
-	err = beneficiary.Get()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-		return
-	}
-
-	//this function will return 0 rows if designated booking info is full. This function validates that the full critera block an
-	//individual from booking a slot but does not explain which. Breaking this up into multiple checks may be the better way to go
-	_, err = models.VerifyFreeAppointment(appointDate, req.AppointmentTimeslot, req.Dose, req.AppointmentCenter)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-		return
-	}
-
-	//This verifys the date constraints and that the user has not already had both doses. add unique constraint for
-	//dose + beneficiary ID would probably be a good idea
-	appList, err := models.GetFullAppointmentsByBeneficiary(req.BeneficiaryID)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-		return
-	}
-	if len(appList) == 2 {
-		err = fmt.Errorf("already recieved both shots")
-		w.WriteHeader(http.StatusInternalServerError)
-		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-		return
-	} else if len(appList) == 1 {
-		if (appointDate.Sub(appList[0].Date).Hours() / 24) < 15 {
-			err = fmt.Errorf("beneficiary is still in 15 day waiting period")
-			w.WriteHeader(http.StatusInternalServerError)
-			jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-			return
-		}
-	}
-	beneficiaryAppointment := models.BeneficiaryAppointment{
-		AppointmentID:     appointment.ID,
-		BeneficiaryID:     req.BeneficiaryID,
-		AppointmentCenter: req.AppointmentCenter,
-		Dose:              req.Dose,
-	}
-
-	_, err = beneficiaryAppointment.Add()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-		return
-	}
 	w.WriteHeader(http.StatusOK)
 }
 
 //This could have been implemented better, although this is named Appointment, we are really updating both
 //appointment and beneficiary_appointment tables respectively.
+//
+//There is no mention of issues with missed appointments. This is an issue that is not addressed in the problem statement
+//and technically breaks the framework of the problem. This will allow for reschedules on appointments that are pre-existing
+//that you can avoid the 2 appointment framework but you'd have to assume the function calling already knows a slot that is
+//passed current date is probably a missed appointment that needs to be reschedule or "updated"
 func UpdateAppointment(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -199,47 +158,30 @@ func UpdateAppointment(w http.ResponseWriter, r *http.Request) {
 		AppointmentTimeslot    string `json:"appointment_slot"`
 		NewAppointmentDate     string `json:"new_appointment_date"`
 		NewAppointmentTimeslot string `json:"new_appointment_timeslot"`
+		NewAppointmentCenter   string `json:"new_appointment_center"`
 	}
 
 	var req Request
 
 	err := jsoniter.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
+		return
 	}
 
-	beneficiary := models.Beneficiary{ID: req.BeneficiaryID}
-	//verify beneficiary exists
-	err = beneficiary.Get()
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-	}
+	//convert string date to time.Time
+	appointDate, err := time.Parse("02-01-2006", req.AppointmentDate)
 	newAppointDate, err := time.Parse("02-01-2006", req.NewAppointmentDate)
+
+	models.UpdateFullAppointment(req.BeneficiaryID, appointDate, newAppointDate, req.AppointmentTimeslot, req.NewAppointmentTimeslot, req.NewAppointmentCenter)
 	if err != nil {
-		fmt.Println(err)
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
 	}
-
-	appts, err := models.GetFullAppointmentsByBeneficiary(beneficiary.ID)
-	if len(appts) == 2 {
-		err = fmt.Errorf("already recieved both shots")
-		w.WriteHeader(http.StatusInternalServerError)
-		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-		return
-	} else if len(appts) == 1 {
-		if (newAppointDate.Sub(appts[0].Date).Hours() / 24) < 15 {
-			err = fmt.Errorf("beneficiary is still in 15 day waiting period")
-			w.WriteHeader(http.StatusInternalServerError)
-			jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
-			return
-		}
-	}
-
-	//BeneficiaryAppointment.Update()
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -248,16 +190,24 @@ func UpdateAppointment(w http.ResponseWriter, r *http.Request) {
 func DeleteAppointment(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	var appointment models.Appointment
+	var beneficiaryAppointment models.BeneficiaryAppointment
 
-	err := jsoniter.NewDecoder(r.Body).Decode(&appointment)
-
+	err := jsoniter.NewDecoder(r.Body).Decode(&beneficiaryAppointment)
 	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
+		return
 	}
 
-	appointment.Delete()
+	_, err = beneficiaryAppointment.Delete()
+	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
+		w.WriteHeader(http.StatusBadRequest)
+		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -283,7 +233,7 @@ func GetAppointment(w http.ResponseWriter, r *http.Request) {
 
 	appointDate, err := time.Parse("02-01-2006", req.AppointmentDate)
 	if err != nil {
-		fmt.Println(err)
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusBadRequest)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
@@ -291,6 +241,7 @@ func GetAppointment(w http.ResponseWriter, r *http.Request) {
 	appointment := models.Appointment{Date: appointDate, Timeslot: req.AppointmentTimeslot}
 	err = appointment.Get()
 	if err != nil {
+		util.Logger.Log(structs.Map(errorStruct{Error: err}))
 		w.WriteHeader(http.StatusInternalServerError)
 		jsoniter.NewEncoder(w).Encode(errorStruct{Error: err})
 		return
@@ -299,20 +250,22 @@ func GetAppointment(w http.ResponseWriter, r *http.Request) {
 	jsoniter.NewEncoder(w).Encode(appointment)
 }
 
+//no need to implement in V.1
 func GetAppointments(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	type Request struct {
-	}
+	// type Request struct {
+	// }
 
-	var req Request
+	// var req Request
 
-	jsoniter.NewDecoder(r.Body).Decode(&req)
+	// jsoniter.NewDecoder(r.Body).Decode(&req)
 
-	if true {
-		w.WriteHeader(http.StatusBadRequest)
-		jsoniter.NewEncoder(w).Encode("")
-	}
+	// if true {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	jsoniter.NewEncoder(w).Encode("")
+	// 	return
+	// }
 
 	//Get Appointments
 }

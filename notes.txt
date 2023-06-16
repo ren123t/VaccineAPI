@@ -104,4 +104,4 @@ JOIN appointment app ON ba.appointment_id = app.appointment_id
 WHERE (SELECT COUNT(*) FROM beneficiary_appointment WHERE app.appointment_date = STR_TO_DATE('21-07-2023', '%d-%m-%Y')  AND app.appointment_slot = "MORNING") < 11 
 AND (SELECT COUNT(*) FROM beneficiary_appointment WHERE app.appointment_date = STR_TO_DATE('21-07-2023', '%d-%m-%Y') AND ba.appointment_center = "CENTER-A" AND ba.appointment_dose = "1") < 16;
 
-SELECT app.appointment_date, app.appointment_slot, appointment_center, appointment_dose FROM beneficiary_appointment JOIN appointment app ON ba.appointment_id = app.appointment_id JOIN beneficiary bene ON ba.beneficiary_id = bene.beneficiary_id WHERE beneficiary_id = 1
+SELECT app.appointment_date, app.appointment_slot, ba.appointment_center, ba.appointment_dose FROM beneficiary_appointment ba JOIN appointment app ON ba.appointment_id = app.appointment_id JOIN beneficiary bene ON ba.beneficiary_id = bene.beneficiary_id WHERE ba.beneficiary_id = 1;
