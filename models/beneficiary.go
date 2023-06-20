@@ -18,7 +18,7 @@ func (beneficiary *Beneficiary) Add() (bool, error) {
 		err := fmt.Errorf("user under 45 years of age")
 		return false, err
 	}
-	query := fmt.Sprintf("INSERT INTO %v (beneficiary_name, beneficiary_dob, beneficiary_ssn, beneficiary_phone) VALUES (?, ?, ?, ?, ?)", TableBeneficiary)
+	query := fmt.Sprintf("INSERT INTO %v (beneficiary_name, beneficiary_dob, beneficiary_ssn, beneficiary_phone) VALUES (?, ?, ?, ?)", TableBeneficiary)
 	_, err := VaccineDB.Query(query, beneficiary.Name, beneficiary.DateOfBirth, beneficiary.SocialSecurityNumber, beneficiary.Phone)
 	if err != nil {
 		return false, err
@@ -35,7 +35,6 @@ func (beneficiary *Beneficiary) Get() error {
 		if row != nil {
 			err := row.Scan(&beneficiary.ID, &beneficiary.Name, &beneficiary.DateOfBirth, &beneficiary.SocialSecurityNumber, &beneficiary.Phone)
 			if err != nil {
-				fmt.Println(err)
 				return err
 			}
 		}
@@ -45,7 +44,6 @@ func (beneficiary *Beneficiary) Get() error {
 		if row != nil {
 			err := row.Scan(&beneficiary.ID, &beneficiary.Name, &beneficiary.DateOfBirth, &beneficiary.SocialSecurityNumber, &beneficiary.Phone)
 			if err != nil {
-				fmt.Println(err)
 				return err
 			}
 		}

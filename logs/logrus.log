@@ -1,0 +1,18 @@
+{"Error":"invalid query data","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"beneficiary is still in 15 day waiting period","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"beneficiary is still in 15 day waiting period","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"appointment time request does not match valid updateable appointment","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"beneficiary is still in 15 day waiting period","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"appointment time request does not match valid updateable appointment","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"appointment time request does not match valid updateable appointment","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"appointment time request does not match valid updateable appointment","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"appointment time request does not match valid updateable appointment","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"appointment time request does not match valid updateable appointment","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"beneficiary is still in 15 day waiting period","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"cannot schedule past 90 days","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"sql: expected 8 destination arguments in Scan, not 4","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"already recieved both shots","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"sql: no rows in result set","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"sql: no rows in result set","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"beneficiary is still in 15 day waiting period","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}
+{"Error":"parsing time \"07-28-2023\": month out of range","level":"error","msg":"","time":"1969-12-31T18:00:01-06:00"}

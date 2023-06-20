@@ -18,15 +18,16 @@ func (appointment *Appointment) Add() (bool, error) {
 	query := fmt.Sprintf("INSERT INTO %v (appointment_date, appointment_slot) VALUES (?, ?)", TableAppointment)
 	_, err := VaccineDB.Query(query, appointment.Date, appointment.Timeslot)
 	if err != nil {
-		fmt.Println(err)
 		return false, err
 	}
 	return true, nil
 }
 
 func (appointment *Appointment) Delete() (bool, error) {
-	rows, err := VaccineDB.Query(fmt.Sprintf("DELETE FROM %v WHERE appointment_id = ?", TableAppointment), appointment.ID)
-	fmt.Println(rows, " ", err)
+	_, err := VaccineDB.Query(fmt.Sprintf("DELETE FROM %v WHERE appointment_id = ?", TableAppointment), appointment.ID)
+	if err != nil {
+		return false, err
+	}
 	return false, nil
 }
 

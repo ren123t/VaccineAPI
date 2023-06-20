@@ -37,7 +37,6 @@ func (beneficiaryAppointment *BeneficiaryAppointment) Get() error {
 			err := row.Scan(&beneficiaryAppointment.BeneficiaryAppointmentID, &beneficiaryAppointment.BeneficiaryID,
 				&beneficiaryAppointment.AppointmentID, &beneficiaryAppointment.AppointmentCenter, &beneficiaryAppointment.Dose)
 			if err != nil {
-				fmt.Println(err)
 				return err
 			}
 		}
@@ -48,7 +47,6 @@ func (beneficiaryAppointment *BeneficiaryAppointment) Get() error {
 			err := row.Scan(&beneficiaryAppointment.BeneficiaryAppointmentID, &beneficiaryAppointment.BeneficiaryID,
 				&beneficiaryAppointment.AppointmentID, &beneficiaryAppointment.AppointmentCenter, &beneficiaryAppointment.Dose)
 			if err != nil {
-				fmt.Println(err)
 				return err
 			}
 		}
@@ -73,7 +71,6 @@ func (beneficiaryAppointment *BeneficiaryAppointment) Update(toUpdate Appointmen
 	//verify BA exists
 	err := beneficiaryAppointment.Get()
 	if err != nil {
-		fmt.Println(err)
 		return false, err
 	}
 
@@ -93,10 +90,9 @@ func (beneficiaryAppointment *BeneficiaryAppointment) Update(toUpdate Appointmen
 		}
 	}
 
-	query := fmt.Sprintf("UPDATE %v SET appointment_id = ?, appointment_center = ? WHERE beneficiary_appointment_id = ?", TableBeneficiaryAppointment)
+	query := fmt.Sprintf("UPDATE %v SET (appointment_id = ?, appointment_center = ?) WHERE beneficiary_appointment_id = ?", TableBeneficiaryAppointment)
 	_, err = VaccineDB.Query(query, toUpdate.ID, updateCenter, beneficiaryAppointment.BeneficiaryAppointmentID)
 	if err != nil {
-		fmt.Println(err)
 		return false, err
 	}
 
@@ -117,7 +113,7 @@ func (beneficiaryAppointment *BeneficiaryAppointment) Delete() (bool, error) {
 }
 
 func (beneficiaryAppointment *BeneficiaryAppointment) Add() (bool, error) {
-	query := fmt.Sprintf("INSERT INTO %v (beneficiary_id, appointment_id, appointment_center, appointment_dose) VALUES (?, ?, ?, ?)", TableBeneficiary)
+	query := fmt.Sprintf("INSERT INTO %v (beneficiary_id, appointment_id, appointment_center, appointment_dose) VALUES (?, ?, ?, ?)", TableBeneficiaryAppointment)
 	_, err := VaccineDB.Query(query,
 		beneficiaryAppointment.BeneficiaryID,
 		beneficiaryAppointment.AppointmentID,
@@ -133,10 +129,9 @@ func (beneficiaryAppointment *BeneficiaryAppointment) Add() (bool, error) {
 //making this an eventual generic function would be much better
 func GetFullAppointmentsByBeneficiary(beneficiaryID int) ([]AppointmentData, error) {
 	listAppData := []AppointmentData{}
-	query := fmt.Sprintf("SELECT ba.beneficiary_appointment_id, bene.beneficiary_id, bene.beneficiary_name, app.appointment_id, app.appointment_date, app.appointment_slot, ba.appointment_center, ba.appointment_dose FROM %v ba JOIN %v app ON ba.appointment_id = app.appointment_id JOIN %v bene ON ba.beneficiary_id = bene.beneficiary_id WHERE ba.beneficiary_id = ?", TableBeneficiaryAppointment, TableAppointment, TableBeneficiary)
+	query := fmt.Sprintf("SELECT ba.beneficiary_appointment_id, bene.beneficiary_id, bene.beneficiary_name, app.appointment_id, app.appointment_date, app.appointment_slot, ba.appointment_center, ba.appointment_dose FROM %v ba JOIN %v app ON ba.appointment_id = app.appointment_id JOIN %v bene ON ba.beneficiary_id = bene.beneficiary_id WHERE ba.beneficiary_id = ? ORDER BY app.appointment_date", TableBeneficiaryAppointment, TableAppointment, TableBeneficiary)
 	rows, err := VaccineDB.Query(query, beneficiaryID)
 	if err != nil {
-		fmt.Println(err)
 		return []AppointmentData{}, err
 	}
 	for rows.Next() {
@@ -155,19 +150,19 @@ func GetFullAppointmentsByBeneficiary(beneficiaryID int) ([]AppointmentData, err
 //it also checks for maximum of 10 per slot per day
 //this query assumes that appointment FK exists and is not used otherwise
 func VerifyFreeAppointment(appointmentDate time.Time, appointmentSlot string, dose string, appointmentCenter string) ([]BeneficiaryAppointment, error) {
-	query := fmt.Sprintf("SELECT * FROM %v ba JOIN %v app ON ba.appointment_id = app.appointment_id WHERE (SELECT COUNT(*) FROM %v WHERE app.appointment_date = ? AND app.appointment_slot = ?) < 11 AND (SELECT COUNT(*) FROM %v WHERE app.appointment_date = ? AND ba.appointment_center = ? AND ba.appointment_dose = ?) < 16",
+	query := fmt.Sprintf("SELECT ba.beneficiary_appointment_id, ba.appointment_id, ba.beneficiary_id, ba.appointment_center, ba.appointment_dose FROM %v ba JOIN %v app ON ba.appointment_id = app.appointment_id WHERE (SELECT COUNT(*) FROM %v WHERE app.appointment_date = ? AND app.appointment_slot = ?) < 11 AND (SELECT COUNT(*) FROM %v WHERE app.appointment_date = ? AND ba.appointment_center = ? AND ba.appointment_dose = ?) < 16",
 		TableBeneficiaryAppointment, TableAppointment, TableBeneficiaryAppointment, TableBeneficiaryAppointment)
 
 	rows, err := VaccineDB.Query(query, appointmentDate, appointmentSlot, appointmentDate, appointmentCenter, dose)
 	if err != nil {
-		fmt.Println(err)
+		return []BeneficiaryAppointment{}, err
 	}
 	listBAs := []BeneficiaryAppointment{}
 	for rows.Next() {
 		var ba BeneficiaryAppointment
-		err = rows.Scan(&ba.AppointmentID, &ba.BeneficiaryID, &ba.AppointmentCenter, &ba.Dose)
+		err = rows.Scan(&ba.BeneficiaryAppointmentID, &ba.AppointmentID, &ba.BeneficiaryID, &ba.AppointmentCenter, &ba.Dose)
 		if err != nil {
-
+			return []BeneficiaryAppointment{}, err
 		}
 		listBAs = append(listBAs, ba)
 	}
@@ -183,17 +178,19 @@ func GetFullAppointment(beneficiaryAppointmentID int) AppointmentData {
 func AddFullAppointment(beneficiaryID int, appointmentDate time.Time, timeslot string, dose string, appointmentCenter string) error {
 	appointment := Appointment{Date: appointmentDate, Timeslot: timeslot}
 	err := appointment.Get()
-	if err.Error() == "sql: no rows in result set" {
-		_, err = appointment.Add()
-		if err != nil {
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			_, err = appointment.Add()
+			if err != nil {
+				return err
+			}
+			err = appointment.Get()
+			if err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
-		err = appointment.Get()
-		if err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
 	}
 
 	beneficiary := Beneficiary{ID: beneficiaryID}
@@ -252,6 +249,8 @@ func UpdateFullAppointment(beneficaryID int, appointmentDate time.Time, newAppoi
 	appts, err := GetFullAppointmentsByBeneficiary(beneficiary.ID)
 	//verify appointment exists and is valid, if it does upsert
 	if appts[len(appts)-1].Date != appointmentDate {
+		fmt.Println(appts)
+		fmt.Println(appointmentDate)
 		err := fmt.Errorf("appointment time request does not match valid updateable appointment")
 		return err
 	}
@@ -262,7 +261,7 @@ func UpdateFullAppointment(beneficaryID int, appointmentDate time.Time, newAppoi
 		}
 	}
 
-	beneficiaryAppointment := BeneficiaryAppointment{BeneficiaryAppointmentID: appts[0].BeneficiaryAppointmentID}
+	beneficiaryAppointment := BeneficiaryAppointment{BeneficiaryAppointmentID: appts[len(appts)-1].BeneficiaryAppointmentID}
 
 	_, err = beneficiaryAppointment.Update(Appointment{Date: newAppointmentDate, Timeslot: newTimeslot}, newCenter)
 	if err != nil {
